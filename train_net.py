@@ -20,6 +20,7 @@ import copy
 import itertools
 import logging
 import os
+import shutil
 from collections import OrderedDict
 from typing import Any, Dict, List, Set
 
@@ -44,7 +45,10 @@ from detectron2.evaluation import (
     SemSegEvaluator,
     verify_results,
 )
+# from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
 from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
+# from detectron2.projects.DeepLab.deeplab.config import add_deeplab_config
+# from detectron2.projects.DeepLab.deeplab.build_solver import build_lr_scheduler
 from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.utils.logger import setup_logger
 
