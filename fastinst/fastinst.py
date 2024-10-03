@@ -121,7 +121,7 @@ class FastInst(nn.Module):
         if deep_supervision:
             dec_layers = cfg.MODEL.FASTINST.DEC_LAYERS
             aux_weight_dict = {}
-            for i in range(2 * dec_layers):
+            for i in range(3 * dec_layers):
                 aux_weight_dict.update({k + f"_{i}": v for k, v in weight_dict.items()})
             weight_dict.update(aux_weight_dict)
 

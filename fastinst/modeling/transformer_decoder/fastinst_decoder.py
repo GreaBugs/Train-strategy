@@ -1,13 +1,18 @@
 import math
-
 import torch
 from detectron2.config import configurable
 from torch import nn
 from torch.nn import functional as F
-
 from fastinst.utils.misc import nested_tensor_from_tensor_list
 from .utils import TRANSFORMER_DECODER_REGISTRY, QueryProposal, \
     CrossAttentionLayer, SelfAttentionLayer, FFNLayer, MLP
+
+
+def is_tensor_in_list(target_tensor, tensor_list):
+    for tensor in tensor_list:
+        if torch.equal(target_tensor, tensor):
+            return True
+    return False
 
 
 @TRANSFORMER_DECODER_REGISTRY.register()
@@ -46,6 +51,8 @@ class FastInstDecoder(nn.Module):
         self.num_layers = dec_layers
         self.num_queries = num_queries
         self.num_aux_queries = num_aux_queries
+        self.start_q = [0, 0, 1, 2, 4, 7, 12]
+        self.end_q = [1, 2, 4, 7, 12, 20, 33]
         self.criterion = None
 
         meta_pos_size = int(round(math.sqrt(self.num_queries)))
@@ -119,6 +126,142 @@ class FastInstDecoder(nn.Module):
         return ret
 
     def forward(self, x, mask_features, targets=None):
+        if self.training:
+            bs = x[0].shape[0]  # bs
+            proposal_size = x[1].shape[-2:]  # 'res4': proposal_h, proposal_w
+            pixel_feature_size = x[2].shape[-2:]  # 'res3': pixel_h, pixel_w
+
+            pixel_pos_embeds = F.interpolate(self.meta_pos_embed, size=pixel_feature_size,
+                                             mode="bilinear", align_corners=False)  # (1, 256, pixel_h, pixel_w)
+            proposal_pos_embeds = F.interpolate(self.meta_pos_embed, size=proposal_size,
+                                                mode="bilinear", align_corners=False)  # (1, 256, proposal_h, proposal_w)
+
+            pixel_features = x[2].flatten(2).permute(2, 0, 1)  # (pixel_h*pixel_w, bs, c)
+            pixel_pos_embeds = pixel_pos_embeds.flatten(2).permute(2, 0, 1)  # (pixel_h*pixel_w, 1, c)
+
+            query_features, query_pos_embeds, query_locations, proposal_cls_logits = self.query_proposal(
+                x[1], proposal_pos_embeds
+            )  # (bs, c, num_q)  (bs, c, num_q)  (bs, num_q, 2)  (bs, num_classes, proposal_h, proposal_w)
+            query_features = query_features.permute(2, 0, 1)  # (num_q, bs , c)
+            query_pos_embeds = query_pos_embeds.permute(2, 0, 1)  # (num_q, bs , c)
+            if self.num_aux_queries > 0:
+                aux_query_features = self.empty_query_features.weight.unsqueeze(1).repeat(1, bs, 1)
+                aux_query_pos_embed = self.empty_query_pos_embed.weight.unsqueeze(1).repeat(1, bs, 1)
+                query_features = torch.cat([query_features, aux_query_features], dim=0)  # (108, bs, c)
+                query_pos_embeds = torch.cat([query_pos_embeds, aux_query_pos_embed], dim=0)  # (108, bs, 256)
+
+            outputs_class, outputs_mask, attn_mask, _, _ = self.forward_prediction_heads(
+                query_features, pixel_features, pixel_feature_size, -1, return_attn_mask=True
+            )  # (bs, num_q, num_classes)  (bs, num_q, num_classes, pixel_h, pixel_w)  (num_head, 108, pixel_h*pixel_w)
+            predictions_class = [outputs_class]  # proposal;
+            predictions_mask = [outputs_mask]  # proposal;
+            predictions_matching_index = [None]  # proposal;
+            query_feature_memory = [query_features]  # q0
+            pixel_feature_memory = [pixel_features]  # p0  # p0 p0-1;p0-1-2;p0-1-2-3
+
+            # Training forward starts here
+            gt_attn_mask = 0
+            matching_indices = 0
+            intermediate_query = []
+            intermediate_pixel = []
+            query_features_reserve = [query_features]  # q0
+            pixel_features_reserve = [pixel_features]  # p0
+
+            for i in range(self.num_layers):
+                start_q = self.start_q[i]  # [0, 0, 1, 2, 4, 7, 12]
+                end_q = self.end_q[i]      # [1, 2, 4, 7, 12, 20, 33]
+                query_features = query_features_reserve.copy()[start_q:end_q]  # q0;q0 q0-1;q0-1 q0-2 q0-1-2;  (108, bs, 256)
+                pixel_features = pixel_feature_memory.copy()[-1]  # p0;p0-1;p0-1-2;  (pixel_h*pixel_w, bs, 256)
+                # CLC
+                # prepare for parallel process
+                query_features_update = torch.cat(query_features, dim=1)  # (pixel_h*pixel_w, bs, 256)
+                fakesetsize = int(query_features_update.shape[1] / bs)  # 1, 2, 3
+                pixel_features_update = pixel_features.repeat(1, fakesetsize, 1)  # (pixel_h*pixel_w, bs, 256) -> (pixel_h*pixel_w, bs*fakesetsize, 256)
+
+                query_pos_embeds_qr = query_pos_embeds.repeat(1, fakesetsize, 1)  # (108, bs, 256) -> (108, bs*fakesetsize, 256)
+                attn_mask = attn_mask.repeat(fakesetsize, 1, 1)  # (num_head * bs, 108, pixel_h*pixel_w)
+                # pixel_pos_embeds = pixel_pos_embeds.repeat(1, fakesetsize, 1)
+
+                query_features_update, pixel_features_update = self.forward_one_layer(
+                    query_features_update, pixel_features_update, query_pos_embeds_qr, pixel_pos_embeds, attn_mask, i
+                )
+
+                for j in range(fakesetsize):
+                    query_features_reserve.append(query_features_update[:, bs*j:bs*(j+1), :])  # q0 q0-1;q0-2 q0-1-2;q0-1-3 q0-2-3 q0-1-2-3;
+                    pixel_features_reserve.append(pixel_features_update[:, bs*j:bs*(j+1), :])  # p0 p0-1;p0-1-2 p0-1-2;p0-1-2-3 p0-1-2-3 p0-1-2-3;
+                    intermediate_query.append(query_features_update[:, bs*j:bs*(j+1), :])  # q0-1;q0-2 q0-1-2;q0-1-3 q0-2-3 q0-1-2-3;
+                    intermediate_pixel.append(pixel_features_update[:, bs*j:bs*(j+1), :])  # p0-1;p0-1-2 p0-1-2;p0-1-2-3 p0-1-2-3 p0-1-2-3;
+
+                intermediate_querys = torch.stack(intermediate_query)  # q0-1;q0-2 q0-1-2;q0-1-3 q0-2-3 q0-1-2-3;
+                intermediate_pixels = torch.stack(intermediate_pixel)  # p0-1;p0-1-2 p0-1-2;p0-1-2-3 p0-1-2-3 p0-1-2-3;
+
+                for query_index in range(intermediate_querys.shape[0]):
+                    if query_index < 1:  # training mode sqr query-stage alignment
+                        lvl = 0
+                    elif query_index >= 1 and query_index < 3:
+                        lvl = 1
+                    else:
+                        lvl = 2
+
+                    if lvl < self.num_layers - 1:
+                        outputs_class, outputs_mask, attn_mask, _, _ = self.forward_prediction_heads(
+                            intermediate_querys[query_index], intermediate_pixels[query_index], pixel_feature_size, lvl, return_attn_mask=True,
+                        )
+                    else:
+                        outputs_class, outputs_mask, _, matching_indices, gt_attn_mask = self.forward_prediction_heads(
+                            intermediate_querys[query_index], intermediate_pixels[query_index], pixel_feature_size, lvl,
+                            return_gt_attn_mask=self.training, targets=targets, query_locations=query_locations
+                        )
+
+                    if is_tensor_in_list(outputs_class, predictions_class):
+                        continue
+                    else:
+                        predictions_class.append(outputs_class)  # proposal_calss q0-1;q0-2 q0-1-2;q0-1-3 q0-2-3 q0-1-2-3
+                        predictions_mask.append(outputs_mask)  # proposal_mask q0-1;q0-2 q0-1-2;q0-1-3 q0-2-3 q0-1-2-3
+                        predictions_matching_index.append(None)
+                        if is_tensor_in_list(query_features_update[:, bs*(fakesetsize-1):bs*fakesetsize, :], query_feature_memory):
+                            continue
+                        else:
+                            query_feature_memory.append(query_features_update[:, bs*(fakesetsize-1):bs*fakesetsize, :])  # q0 q0-1;q0-1-2;q0-1-2-3
+                            pixel_feature_memory.append(pixel_features_update[:, bs*(fakesetsize-1):bs*fakesetsize, :])  # p0 p0-1;p0-1-2;p0-1-2-3
+
+            guided_predictions_class = []
+            guided_predictions_mask = []
+            guided_predictions_matching_index = []
+
+            for i in range(self.num_layers):
+                query_features, pixel_features = self.forward_one_layer(
+                    query_feature_memory[i + 1], pixel_feature_memory[i + 1], query_pos_embeds,
+                    pixel_pos_embeds, gt_attn_mask, i
+                )
+
+                outputs_class, outputs_mask, _, _, _ = self.forward_prediction_heads(
+                    query_features, pixel_features, pixel_feature_size, idx_layer=i
+                )
+
+                guided_predictions_class.append(outputs_class)
+                guided_predictions_mask.append(outputs_mask)
+                guided_predictions_matching_index.append(matching_indices)
+
+            predictions_class = guided_predictions_class + predictions_class
+            predictions_mask = guided_predictions_mask + predictions_mask
+            predictions_matching_index = guided_predictions_matching_index + predictions_matching_index
+
+            out = {
+                'proposal_cls_logits': proposal_cls_logits,
+                'query_locations': query_locations,
+                'pred_logits': predictions_class[-1],
+                'pred_masks': predictions_mask[-1],
+                'pred_matching_indices': predictions_matching_index[-1],
+                'aux_outputs': self._set_aux_loss(
+                    predictions_class, predictions_mask, predictions_matching_index, query_locations
+                )
+            }
+            return out
+        else:
+            return self.forward_for_test(x, mask_features, targets=None)
+
+    def forward_for_test(self, x, mask_features, targets=None):
         bs = x[0].shape[0]
         proposal_size = x[1].shape[-2:]
         pixel_feature_size = x[2].shape[-2:]
@@ -170,28 +313,6 @@ class FastInstDecoder(nn.Module):
             query_feature_memory.append(query_features)
             pixel_feature_memory.append(pixel_features)
 
-        guided_predictions_class = []
-        guided_predictions_mask = []
-        guided_predictions_matching_index = []
-        if self.training:
-            for i in range(self.num_layers):
-                query_features, pixel_features = self.forward_one_layer(
-                    query_feature_memory[i + 1], pixel_feature_memory[i + 1], query_pos_embeds,
-                    pixel_pos_embeds, gt_attn_mask, i
-                )
-
-                outputs_class, outputs_mask, _, _, _ = self.forward_prediction_heads(
-                    query_features, pixel_features, pixel_feature_size, idx_layer=i
-                )
-
-                guided_predictions_class.append(outputs_class)
-                guided_predictions_mask.append(outputs_mask)
-                guided_predictions_matching_index.append(matching_indices)
-
-        predictions_class = guided_predictions_class + predictions_class
-        predictions_mask = guided_predictions_mask + predictions_mask
-        predictions_matching_index = guided_predictions_matching_index + predictions_matching_index
-
         out = {
             'proposal_cls_logits': proposal_cls_logits,
             'query_locations': query_locations,
@@ -207,8 +328,8 @@ class FastInstDecoder(nn.Module):
     def forward_one_layer(self, query_features, pixel_features, query_pos_embeds, pixel_pos_embeds, attn_mask, i):
         pixel_features = self.transformer_mask_cross_attention_layers[i](
             pixel_features, query_features, query_pos=pixel_pos_embeds, pos=query_pos_embeds
-        )
-        pixel_features = self.transformer_mask_ffn_layers[i](pixel_features)
+        )  # (pixel_h*pixel_w, bs, channel)
+        pixel_features = self.transformer_mask_ffn_layers[i](pixel_features)  # (pixel_h*pixel_w, bs, channel)
 
         query_features = self.transformer_query_cross_attention_layers[i](
             query_features, pixel_features, memory_mask=attn_mask, query_pos=query_pos_embeds, pos=pixel_pos_embeds
@@ -237,9 +358,9 @@ class FastInstDecoder(nn.Module):
         if return_attn_mask:
             # outputs_mask.shape: b, q, h, w
             attn_mask = F.pad(outputs_mask, (0, 0, 0, 0, 0, self.num_aux_queries), "constant", 1)
-            attn_mask = (attn_mask < 0.).flatten(2)  # b, q, hw
+            attn_mask = (attn_mask < 0.).flatten(2)  # b, q, hw  # (2, 108, 8464)
             invalid_query = attn_mask.all(-1, keepdim=True)  # b, q, 1
-            attn_mask = (~ invalid_query) & attn_mask  # b, q, hw
+            attn_mask = (~ invalid_query) & attn_mask  # b, q, hw  # (2, 108, 8464)
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.num_heads, 1, 1).flatten(0, 1)
             attn_mask = attn_mask.detach()
         else:
