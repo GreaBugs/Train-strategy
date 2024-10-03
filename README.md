@@ -46,75 +46,52 @@ See [Getting Started](#getting-started-1).
 <th valign="bottom">Epochs</th>
 <th valign="bottom">Input</th>
 <th valign="bottom">AP<sup>val</sup></th>
-<th valign="bottom">AP</th>
 <th valign="bottom">Params</th>
 <th valign="bottom">GFlops</th>
-<th valign="bottom">FPS (V100)</th>
 <th valign="bottom">download</th>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">FastInst-D1</a></td>
-<td align="center">R50</td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">FastInst+EMM+MPQ</a></td>
+<td align="center">R101</td>
 <td align="center">50</td>
-<td align="center">576</td>
-<td align="center">34.9</td>
-<td align="center">35.6</td>
-<td align="center">30M</td>
-<td align="center">49.6</td>
-<td align="center">53.8</td>
+<td align="center">640</td>
+<td align="center">40.0</td>
+<td align="center">53.1M</td>
+<td align="center">112.9</td>
 <td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x1_576_34.9.pth">model</a></td>
 </tr>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">FastInst+EMM+MPQ</a></td>
+<td align="center">R50-d-DCN</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">40.8</td>
+<td align="center">34.7M</td>
+<td align="center">68.0</td>
+<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x1_576_34.9.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">Mask2Former+EMM+MPQ</a></td>
 <td align="center">R50</td>
 <td align="center">50</td>
 <td align="center">640</td>
-<td align="center">37.9</td>
-<td align="center">38.6</td>
-<td align="center">34M</td>
-<td align="center">75.5</td>
-<td align="center">35.5</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x3_640_37.9.pth">model</a></td>
+<td align="center">44.3</td>
+<td align="center">43.9M</td>
+<td align="center">224.8</td>
+<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x1_576_34.9.pth">model</a></td>
 </tr>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
-<td align="center"><a href="https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/MSRA/R-101.pkl">R101</a></td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">Mask2Former+EMM+MPQ</a></td>
+<td align="center">Swin-B</td>
 <td align="center">50</td>
 <td align="center">640</td>
-<td align="center">38.9</td>
-<td align="center">39.9</td>
-<td align="center">53M</td>
-<td align="center">112.9</td>
-<td align="center">28.0</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R101_ppm-fpn_x3_640_38.9.pth">model</a></td>
-</tr>
-
-<tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x1_576.yaml">FastInst-D1</a></td>
-<td align="center"><a href="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resnet50d_ra2-464e36ba.pth">R50-d-DCN</a></td>
-<td align="center">50</td>
-<td align="center">576</td>
-<td align="center">37.4</td>
-<td align="center">38.0</td>
-<td align="center">30M</td>
-<td align="center"> - </td>
-<td align="center">47.8</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50-vd-dcn_ppm-fpn_x1_576_37.4.pth">model</a></td>
-</tr>
-
-<tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
-<td align="center"><a href="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resnet50d_ra2-464e36ba.pth">R50-d-DCN</a></td>
-<td align="center">50</td>
-<td align="center">640</td>
-<td align="center">40.1</td>
-<td align="center">40.5</td>
-<td align="center">35M</td>
-<td align="center"> - </td>
-<td align="center">32.5</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50-vd-dcn_ppm-fpn_x3_640_40.1.pth">model</a></td>
+<td align="center">48.7</td>
+<td align="center">0.1G</td>
+<td align="center">464.2</td>
+<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x1_576_34.9.pth">model</a></td>
 </tr>
 
 </tbody></table>
