@@ -1,7 +1,15 @@
 # output dir
-output
+output/
 instant_test_output
 inference_test_output
+datasets/
+detectron2/
+checkoutpoints/
+tools/
+INSTALL.md
+README.md
+requirements.txt
+configs/
 
 
 *.DS_Store
@@ -52,3 +60,4 @@ _darcs
 /projects/*/datasets
 /models
 /snippet
+src/

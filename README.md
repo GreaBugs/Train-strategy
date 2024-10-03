@@ -1,21 +1,20 @@
-# FastInst: A Simple Query-Based Model for Real-Time Instance Segmentation
+# Training strategy for Transformer-based instance segmentation model
 
-[[`arXiv`](https://arxiv.org/abs/2303.08594)] [[`BibTeX`](#CitingFastInst)]
 
-<p align="center"><img width="100%" src="figures/fastinst.png" /></p>
+<p align="center"><img width="100%" src="figures/OverView_fig.png" /></p>
 
 ### Features
 
-* A simple query-based model for fast instance segmentation.
-* **State-of-the-art** real-time performance under the same setting.
+* The Multi-path Propagation of Queries (MPQ) strategy to address issues of feature degradation and cascading errors in the stage-wise decoding process.
+* The Enhanced Mask Module (EMM) which improves mask quality and increases the diversity of masks used for attention computation.
+* **State-of-the-art** higher accuracy under the same number of parameters and inference speed.
 * Support major segmentation datasets: COCO, Cityscapes, ADE20K.
 
 ***
 
 ## Updates
 
-* [2023/6] FastInst has been integrated into [ModelScope](https://www.modelscope.cn/home). Try out the Online Demo at [FastInst](https://modelscope.cn/models/damo/cv_resnet50_fast-instance-segmentation_coco/summary) 🚀.
-* [2023/4] We have released the code and checkpoints for FastInst. Welcome to your attention!
+* [2024/10] We have released the code and checkpoints for Training_strategy. Welcome to your attention!
 
 ## Installation
 
@@ -25,7 +24,7 @@ See [installation instructions](INSTALL.md).
 
 See [Results](#results).
 
-See [Preparing Datasets for FastInst](datasets/README.md).
+See [Preparing Datasets for Training_strategy](datasets/README.md).
 
 See [Getting Started](#getting-started-1).
 
@@ -33,7 +32,8 @@ See [Getting Started](#getting-started-1).
 
 # Results
 
-<p><img width="50%" src="figures/trade-off.png" /></p>
+<p><img width="50%" src="figures/compare_result1.png" /></p>
+<p><img width="50%" src="figures/compare_result2.png" /></p>
 
 ### COCO Instance Segmentation
 
@@ -45,82 +45,114 @@ See [Getting Started](#getting-started-1).
 <th valign="bottom">Epochs</th>
 <th valign="bottom">Input</th>
 <th valign="bottom">AP<sup>val</sup></th>
-<th valign="bottom">AP</th>
 <th valign="bottom">Params</th>
 <th valign="bottom">GFlops</th>
-<th valign="bottom">FPS (V100)</th>
 <th valign="bottom">download</th>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x1_576.yaml">FastInst-D1</a></td>
-<td align="center">R50</td>
-<td align="center">50</td>
-<td align="center">576</td>
-<td align="center">34.9</td>
-<td align="center">35.6</td>
-<td align="center">30M</td>
-<td align="center">49.6</td>
-<td align="center">53.8</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x1_576_34.9.pth">model</a></td>
-</tr>
-
-<tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
-<td align="center">R50</td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst</a></td>
+<td align="center">R101</td>
 <td align="center">50</td>
 <td align="center">640</td>
-<td align="center">37.9</td>
-<td align="center">38.6</td>
-<td align="center">34M</td>
-<td align="center">75.5</td>
-<td align="center">35.5</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50_ppm-fpn_x3_640_37.9.pth">model</a></td>
-</tr>
-
-<tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
-<td align="center"><a href="https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/MSRA/R-101.pkl">R101</a></td>
-<td align="center">50</td>
-<td align="center">640</td>
-<td align="center">38.9</td>
-<td align="center">39.9</td>
-<td align="center">53M</td>
+<td align="center">38.8</td>
+<td align="center">53.1M</td>
 <td align="center">112.9</td>
-<td align="center">28.0</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R101_ppm-fpn_x3_640_38.9.pth">model</a></td>
+<td align="center">model</td>
 </tr>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x1_576.yaml">FastInst-D1</a></td>
-<td align="center"><a href="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resnet50d_ra2-464e36ba.pth">R50-d-DCN</a></td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst+EMM+MPQ</a></td>
+<td align="center">R101</td>
 <td align="center">50</td>
-<td align="center">576</td>
-<td align="center">37.4</td>
-<td align="center">38.0</td>
-<td align="center">30M</td>
-<td align="center"> - </td>
-<td align="center">47.8</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50-vd-dcn_ppm-fpn_x1_576_37.4.pth">model</a></td>
+<td align="center">640</td>
+<td align="center">40.0</td>
+<td align="center">53.1M</td>
+<td align="center">112.9</td>
+<td align="center">model</td>
 </tr>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst-D3</a></td>
-<td align="center"><a href="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resnet50d_ra2-464e36ba.pth">R50-d-DCN</a></td>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst</a></td>
+<td align="center">R50-d-DCN</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">39.7</td>
+<td align="center">34.7M</td>
+<td align="center">68.0</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.0.0/FastInst_39.7.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst+EMM</a></td>
+<td align="center">R50-d-DCN</td>
 <td align="center">50</td>
 <td align="center">640</td>
 <td align="center">40.1</td>
+<td align="center">34.7M</td>
+<td align="center">68.0</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.0.0/FastInst+EMM_40.1.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst+MPQ</a></td>
+<td align="center">R50-d-DCN</td>
+<td align="center">50</td>
+<td align="center">640</td>
 <td align="center">40.5</td>
-<td align="center">35M</td>
-<td align="center"> - </td>
-<td align="center">32.5</td>
-<td align="center"><a href="https://github.com/junjiehe96/FastInst/releases/download/v0.1.0/fastinst_R50-vd-dcn_ppm-fpn_x3_640_40.1.pth">model</a></td>
+<td align="center">34.7M</td>
+<td align="center">68.0</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.0.0/FastInst+MPQ_40.5.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/maskformer2_R50_bs16_50ep.yaml">Mask2Former</a></td>
+<td align="center">R50</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">43.6</td>
+<td align="center">43.9M</td>
+<td align="center">224.8</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former_43.6.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/maskformer2_R50_bs16_50ep.yaml">Mask2Former+EMM+MPQ</a></td>
+<td align="center">R50</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">44.3</td>
+<td align="center">43.9M</td>
+<td align="center">224.8</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former+EMM+MPQ_44.3.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/swin/maskformer2_swin_base_384_bs16_50ep.yaml">Mask2Former</a></td>
+<td align="center">Swin-B</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">48.1</td>
+<td align="center">0.1G</td>
+<td align="center">464.2</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former_48.1.pth">model</a></td>
+</tr>
+
+<tr>
+<td align="left"><a href="configs/coco/instance-segmentation/swin/maskformer2_swin_base_384_bs16_50ep.yaml">Mask2Former+EMM+MPQ</a></td>
+<td align="center">Swin-B</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">48.7</td>
+<td align="center">0.1G</td>
+<td align="center">464.2</td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former+EMM+MPQ_48.7.pth">model</a></td>
 </tr>
 
 </tbody></table>
 
 # Getting Started
 
-This document provides a brief intro of the usage of FastInst.
+This document provides a brief intro of the usage of Tranin_Strategy.
 
 Please
 see [Getting Started with Detectron2](https://github.com/facebookresearch/detectron2/blob/master/GETTING_STARTED.md) for
@@ -156,24 +188,6 @@ full usage.
   python tools/convert-timm-to-d2.py /path/to/resnet50d_ra2-464e36ba.pth /path/to/resnet50d_ra2-464e36ba.pkl
   python train_net.py --num-gpus 4 --config-file config_path MODEL.WEIGHTS /path/to/resnet50d_ra2-464e36ba.pkl
   ```
-
-## LICNESE
-
-FastInst is released under the [MIT Licence](LICENSE).
-
-## <a name="CitingFastInst"></a>Citing FastInst
-
-If you find FastInst is useful in your research or applications, please consider giving us a star &#127775; and citing
-FastInst by the following BibTeX entry.
-
-```BibTeX
-@article{he2023fastinst,
-  title={FastInst: A Simple Query-Based Model for Real-Time Instance Segmentation},
-  author={He, Junjie and Li, Pengyu and Geng, Yifeng and Xie, Xuansong},
-  journal={arXiv preprint arXiv:2303.08594},
-  year={2023}
-}
-```
 
 ## Acknowledgement
 

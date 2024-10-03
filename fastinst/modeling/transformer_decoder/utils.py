@@ -75,12 +75,12 @@ class QueryProposal(nn.Module):
 
     def forward(self, x, pos_embeddings):
 
-        proposal_cls_logits = self.conv_proposal_cls_logits(x)  # b, c, h, w
-        proposal_cls_probs = proposal_cls_logits.softmax(dim=1)  # b, c, h, w
+        proposal_cls_logits = self.conv_proposal_cls_logits(x)  # b, class + 1, h, w
+        proposal_cls_probs = proposal_cls_logits.softmax(dim=1)  # b, class + 1, h, w
         proposal_cls_one_hot = F.one_hot(proposal_cls_probs[:, :-1, :, :].max(1)[1],
-                                         num_classes=self.num_classes + 1).permute(0, 3, 1, 2)  # b, c, h, w
+                                         num_classes=self.num_classes + 1).permute(0, 3, 1, 2)  # bs, class + 1, h, w
         proposal_cls_probs = proposal_cls_probs.mul(proposal_cls_one_hot)
-        proposal_local_maximum_map = self.seek_local_maximum(proposal_cls_probs)  # b, c, h, w
+        proposal_local_maximum_map = self.seek_local_maximum(proposal_cls_probs)  # bs, class + 1, h, w
         proposal_cls_probs = proposal_cls_probs + proposal_local_maximum_map  # b, c, h, w
 
         # top-k indices

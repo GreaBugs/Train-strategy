@@ -4,6 +4,8 @@ FastInst Training Script.
 
 This script is a simplified version of the training script in detectron2/tools.
 """
+import shutil
+
 try:
     # ignore ShapelyDeprecationWarning from fvcore
     from shapely.errors import ShapelyDeprecationWarning
@@ -13,10 +15,12 @@ try:
 except:
     pass
 
+import os
 import copy
 import itertools
 import logging
 import os
+import shutil
 from collections import OrderedDict
 from typing import Any, Dict, List, Set
 
@@ -41,7 +45,10 @@ from detectron2.evaluation import (
     SemSegEvaluator,
     verify_results,
 )
+# from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
 from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
+# from detectron2.projects.DeepLab.deeplab.config import add_deeplab_config
+# from detectron2.projects.DeepLab.deeplab.build_solver import build_lr_scheduler
 from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.utils.logger import setup_logger
 
@@ -62,7 +69,6 @@ class Trainer(DefaultTrainer):
     """
     Extension of the Trainer class adapted to FastInst.
     """
-
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         """
@@ -275,12 +281,13 @@ def setup(args):
     """
     Create configs and perform basic setups.
     """
-    cfg = get_cfg()
+    cfg = get_cfg()  # Cloned a default configuration
     # for poly lr schedule
     add_deeplab_config(cfg)
     add_fastinst_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+
     cfg.freeze()
     default_setup(cfg, args)
     # Setup logger for "fastinst" module
@@ -290,7 +297,6 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-
     if args.eval_only:
         model = Trainer.build_model(cfg)
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
@@ -310,6 +316,7 @@ def main(args):
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()
+
     print("Command Line Args:", args)
     launch(
         main,

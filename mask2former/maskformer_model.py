@@ -1,46 +1,48 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
 from typing import Tuple
 
 import torch
+from torch import nn
+from torch.nn import functional as F
+
 from detectron2.config import configurable
 from detectron2.data import MetadataCatalog
 from detectron2.modeling import META_ARCH_REGISTRY, build_backbone, build_sem_seg_head
 from detectron2.modeling.backbone import Backbone
 from detectron2.modeling.postprocessing import sem_seg_postprocess
-from detectron2.structures import Boxes, ImageList, Instances
+from detectron2.structures import Boxes, ImageList, Instances, BitMasks
 from detectron2.utils.memory import retry_if_cuda_oom
-from torch import nn
-from torch.nn import functional as F
 
 from .modeling.criterion import SetCriterion
 from .modeling.matcher import HungarianMatcher
 
 
 @META_ARCH_REGISTRY.register()
-class FastInst(nn.Module):
+class MaskFormer(nn.Module):
     """
-    Main class for fastinst architectures.
+    Main class for mask classification semantic segmentation architectures.
     """
 
     @configurable
     def __init__(
-            self,
-            *,
-            backbone: Backbone,
-            sem_seg_head: nn.Module,
-            criterion: nn.Module,
-            num_queries: int,
-            object_mask_threshold: float,
-            overlap_threshold: float,
-            metadata,
-            size_divisibility: int,
-            sem_seg_postprocess_before_inference: bool,
-            pixel_mean: Tuple[float],
-            pixel_std: Tuple[float],
-            # inference
-            semantic_on: bool,
-            instance_on: bool,
-            panoptic_on: bool,
-            test_topk_per_image: int,
+        self,
+        *,
+        backbone: Backbone,
+        sem_seg_head: nn.Module,
+        criterion: nn.Module,
+        num_queries: int,
+        object_mask_threshold: float,
+        overlap_threshold: float,
+        metadata,
+        size_divisibility: int,
+        sem_seg_postprocess_before_inference: bool,
+        pixel_mean: Tuple[float],
+        pixel_std: Tuple[float],
+        # inference
+        semantic_on: bool,
+        panoptic_on: bool,
+        instance_on: bool,
+        test_topk_per_image: int,
     ):
         """
         Args:
@@ -57,7 +59,7 @@ class FastInst(nn.Module):
                 specific integer. We can use this to override such requirement.
             sem_seg_postprocess_before_inference: whether to resize the prediction back
                 to original input size before semantic segmentation inference or after.
-                For high-resolution dataset, resizing predictions before
+                For high-resolution dataset like Mapillary, resizing predictions before
                 inference will cause OOM error.
             pixel_mean, pixel_std: list or tuple with #channels element, representing
                 the per-channel mean and std to be used to normalize the input image
@@ -97,35 +99,30 @@ class FastInst(nn.Module):
         sem_seg_head = build_sem_seg_head(cfg, backbone.output_shape())
 
         # Loss parameters:
-        deep_supervision = cfg.MODEL.FASTINST.DEEP_SUPERVISION
-        no_object_weight = cfg.MODEL.FASTINST.NO_OBJECT_WEIGHT
+        deep_supervision = cfg.MODEL.MASK_FORMER.DEEP_SUPERVISION
+        no_object_weight = cfg.MODEL.MASK_FORMER.NO_OBJECT_WEIGHT
 
         # loss weights
-        class_weight = cfg.MODEL.FASTINST.CLASS_WEIGHT
-        dice_weight = cfg.MODEL.FASTINST.DICE_WEIGHT
-        mask_weight = cfg.MODEL.FASTINST.MASK_WEIGHT
-        location_weight = cfg.MODEL.FASTINST.LOCATION_WEIGHT
-        proposal_weight = cfg.MODEL.FASTINST.PROPOSAL_WEIGHT
+        class_weight = cfg.MODEL.MASK_FORMER.CLASS_WEIGHT
+        dice_weight = cfg.MODEL.MASK_FORMER.DICE_WEIGHT
+        mask_weight = cfg.MODEL.MASK_FORMER.MASK_WEIGHT
 
         # building criterion
         matcher = HungarianMatcher(
             cost_class=class_weight,
             cost_mask=mask_weight,
             cost_dice=dice_weight,
-            cost_location=location_weight,
-            num_points=cfg.MODEL.FASTINST.TRAIN_NUM_POINTS,
+            num_points=cfg.MODEL.MASK_FORMER.TRAIN_NUM_POINTS,
         )
 
         weight_dict = {"loss_ce": class_weight, "loss_mask": mask_weight, "loss_dice": dice_weight}
 
         if deep_supervision:
-            dec_layers = cfg.MODEL.FASTINST.DEC_LAYERS
+            dec_layers = cfg.MODEL.MASK_FORMER.DEC_LAYERS
             aux_weight_dict = {}
-            for i in range(3 * dec_layers):
+            for i in range(dec_layers - 1):
                 aux_weight_dict.update({k + f"_{i}": v for k, v in weight_dict.items()})
             weight_dict.update(aux_weight_dict)
-
-        weight_dict.update({"loss_proposal": proposal_weight})
 
         losses = ["labels", "masks"]
 
@@ -135,32 +132,31 @@ class FastInst(nn.Module):
             weight_dict=weight_dict,
             eos_coef=no_object_weight,
             losses=losses,
-            num_points=cfg.MODEL.FASTINST.TRAIN_NUM_POINTS,
-            oversample_ratio=cfg.MODEL.FASTINST.OVERSAMPLE_RATIO,
-            importance_sample_ratio=cfg.MODEL.FASTINST.IMPORTANCE_SAMPLE_RATIO,
+            num_points=cfg.MODEL.MASK_FORMER.TRAIN_NUM_POINTS,
+            oversample_ratio=cfg.MODEL.MASK_FORMER.OVERSAMPLE_RATIO,
+            importance_sample_ratio=cfg.MODEL.MASK_FORMER.IMPORTANCE_SAMPLE_RATIO,
         )
-        sem_seg_head.predictor.criterion = criterion
 
         return {
             "backbone": backbone,
             "sem_seg_head": sem_seg_head,
             "criterion": criterion,
-            "num_queries": cfg.MODEL.FASTINST.NUM_OBJECT_QUERIES,
-            "object_mask_threshold": cfg.MODEL.FASTINST.TEST.OBJECT_MASK_THRESHOLD,
-            "overlap_threshold": cfg.MODEL.FASTINST.TEST.OVERLAP_THRESHOLD,
+            "num_queries": cfg.MODEL.MASK_FORMER.NUM_OBJECT_QUERIES,
+            "object_mask_threshold": cfg.MODEL.MASK_FORMER.TEST.OBJECT_MASK_THRESHOLD,
+            "overlap_threshold": cfg.MODEL.MASK_FORMER.TEST.OVERLAP_THRESHOLD,
             "metadata": MetadataCatalog.get(cfg.DATASETS.TRAIN[0]),
-            "size_divisibility": cfg.MODEL.FASTINST.SIZE_DIVISIBILITY,
+            "size_divisibility": cfg.MODEL.MASK_FORMER.SIZE_DIVISIBILITY,
             "sem_seg_postprocess_before_inference": (
-                    cfg.MODEL.FASTINST.TEST.SEM_SEG_POSTPROCESSING_BEFORE_INFERENCE
-                    or cfg.MODEL.FASTINST.TEST.PANOPTIC_ON
-                    or cfg.MODEL.FASTINST.TEST.INSTANCE_ON
+                cfg.MODEL.MASK_FORMER.TEST.SEM_SEG_POSTPROCESSING_BEFORE_INFERENCE
+                or cfg.MODEL.MASK_FORMER.TEST.PANOPTIC_ON
+                or cfg.MODEL.MASK_FORMER.TEST.INSTANCE_ON
             ),
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             # inference
-            "semantic_on": cfg.MODEL.FASTINST.TEST.SEMANTIC_ON,
-            "instance_on": cfg.MODEL.FASTINST.TEST.INSTANCE_ON,
-            "panoptic_on": cfg.MODEL.FASTINST.TEST.PANOPTIC_ON,
+            "semantic_on": cfg.MODEL.MASK_FORMER.TEST.SEMANTIC_ON,
+            "instance_on": cfg.MODEL.MASK_FORMER.TEST.INSTANCE_ON,
+            "panoptic_on": cfg.MODEL.MASK_FORMER.TEST.PANOPTIC_ON,
             "test_topk_per_image": cfg.TEST.DETECTIONS_PER_IMAGE,
         }
 
@@ -195,11 +191,11 @@ class FastInst(nn.Module):
                         Each dict contains keys "id", "category_id", "isthing".
         """
         images = [x["image"].to(self.device) for x in batched_inputs]
-
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         images = ImageList.from_tensors(images, self.size_divisibility)
 
         features = self.backbone(images.tensor)
+        outputs = self.sem_seg_head(features)
 
         if self.training:
             # mask classification target
@@ -208,8 +204,6 @@ class FastInst(nn.Module):
                 targets = self.prepare_targets(gt_instances, images)
             else:
                 targets = None
-
-            outputs = self.sem_seg_head(features, targets)
 
             # bipartite matching-based loss
             losses = self.criterion(outputs, targets)
@@ -222,11 +216,8 @@ class FastInst(nn.Module):
                     losses.pop(k)
             return losses
         else:
-            outputs = self.sem_seg_head(features)
-
             mask_cls_results = outputs["pred_logits"]
             mask_pred_results = outputs["pred_masks"]
-
             # upsample masks
             mask_pred_results = F.interpolate(
                 mask_pred_results,
@@ -239,7 +230,7 @@ class FastInst(nn.Module):
 
             processed_results = []
             for mask_cls_result, mask_pred_result, input_per_image, image_size in zip(
-                    mask_cls_results, mask_pred_results, batched_inputs, images.image_sizes,
+                mask_cls_results, mask_pred_results, batched_inputs, images.image_sizes
             ):
                 height = input_per_image.get("height", image_size[0])
                 width = input_per_image.get("width", image_size[1])
@@ -262,7 +253,7 @@ class FastInst(nn.Module):
                 if self.panoptic_on:
                     panoptic_r = retry_if_cuda_oom(self.panoptic_inference)(mask_cls_result, mask_pred_result)
                     processed_results[-1]["panoptic_seg"] = panoptic_r
-
+                
                 # instance segmentation inference
                 if self.instance_on:
                     instance_r = retry_if_cuda_oom(self.instance_inference)(mask_cls_result, mask_pred_result)
@@ -300,6 +291,8 @@ class FastInst(nn.Module):
         cur_scores = scores[keep]
         cur_classes = labels[keep]
         cur_masks = mask_pred[keep]
+        cur_mask_cls = mask_cls[keep]
+        cur_mask_cls = cur_mask_cls[:, :-1]
 
         cur_prob_masks = cur_scores.view(-1, 1, 1) * cur_masks
 
@@ -354,13 +347,13 @@ class FastInst(nn.Module):
 
         # [Q, K]
         scores = F.softmax(mask_cls, dim=-1)[:, :-1]
-        labels = torch.arange(
-            self.sem_seg_head.num_classes, device=self.device
-        ).unsqueeze(0).repeat(self.num_queries, 1).flatten(0, 1)
+        labels = torch.arange(self.sem_seg_head.num_classes, device=self.device).unsqueeze(0).repeat(self.num_queries, 1).flatten(0, 1)
+        # scores_per_image, topk_indices = scores.flatten(0, 1).topk(self.num_queries, sorted=False)
         scores_per_image, topk_indices = scores.flatten(0, 1).topk(self.test_topk_per_image, sorted=False)
         labels_per_image = labels[topk_indices]
 
         topk_indices = topk_indices // self.sem_seg_head.num_classes
+        # mask_pred = mask_pred.unsqueeze(1).repeat(1, self.sem_seg_head.num_classes, 1).flatten(0, 1)
         mask_pred = mask_pred[topk_indices]
 
         # if this is panoptic segmentation, we only keep the "thing" classes
@@ -375,15 +368,13 @@ class FastInst(nn.Module):
 
         result = Instances(image_size)
         # mask (before sigmoid)
-        mask_pred_sigmoid = mask_pred.sigmoid()
-        result.pred_masks = (mask_pred_sigmoid > 0.5).float()  # result.pred_masks = (mask_pred > 0).float()
+        result.pred_masks = (mask_pred > 0).float()
         result.pred_boxes = Boxes(torch.zeros(mask_pred.size(0), 4))
         # Uncomment the following to get boxes from masks (this is slow)
         # result.pred_boxes = BitMasks(mask_pred > 0).get_bounding_boxes()
 
         # calculate average mask prob
-        mask_scores_per_image = (mask_pred_sigmoid.flatten(1) * result.pred_masks.flatten(1)).sum(1) / (
-                result.pred_masks.flatten(1).sum(1) + 1e-6)
+        mask_scores_per_image = (mask_pred.sigmoid().flatten(1) * result.pred_masks.flatten(1)).sum(1) / (result.pred_masks.flatten(1).sum(1) + 1e-6)
         result.scores = scores_per_image * mask_scores_per_image
         result.pred_classes = labels_per_image
         return result
