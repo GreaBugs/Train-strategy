@@ -310,7 +310,7 @@ def main(args):
     return trainer.train()
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     args = default_argument_parser().parse_args()
 
     print("Command Line Args:", args)

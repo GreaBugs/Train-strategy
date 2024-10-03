@@ -2,8 +2,6 @@
 output/
 instant_test_output
 inference_test_output
-/data3/shenbaoyue/code/FastInst/Fastinst-SQR-select/datasets
-/data3/shenbaoyue/code/FastInst/Fastinst-SQR-select/detectron2
 datasets/
 detectron2/
 checkoutpoints/
