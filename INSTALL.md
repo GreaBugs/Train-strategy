@@ -13,8 +13,8 @@
 ### Example conda environment setup
 
 ```bash
-conda create --name fastinst python=3.8 -y
-conda activate fastinst
+conda create --name train_strategy python=3.8 -y
+conda activate train_strategy
 conda install pytorch==1.9.0 torchvision==0.10.0 cudatoolkit=11.1 -c pytorch -c nvidia
 pip install -U opencv-python
 
@@ -26,7 +26,7 @@ pip install git+https://github.com/cocodataset/panopticapi.git
 pip install git+https://github.com/mcordts/cityscapesScripts.git
 
 cd ..
-git clone git@github.com:junjiehe96/FastInst.git
-cd FastInst
+git clone git@github.com:GreaBugs/Train-strategy.git
+cd Train-strategy
 pip install -r requirements.txt
 ```

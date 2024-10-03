@@ -1,21 +1,21 @@
 # FastInst: A Simple Query-Based Model for Real-Time Instance Segmentation
 
-[[`arXiv`](https://arxiv.org/abs/2303.08594)] [[`BibTeX`](#CitingFastInst)]
+[[`BibTeX`](#CitingFastInst)]
 
-<p align="center"><img width="100%" src="figures/fastinst.png" /></p>
+<p align="center"><img width="100%" src="figures/OverView_fig.png" /></p>
 
 ### Features
 
-* A simple query-based model for fast instance segmentation.
-* **State-of-the-art** real-time performance under the same setting.
+* The Multi-path Propagation of Queries (MPQ) strategy to address issues of feature degradation and cascading errors in the stage-wise decoding process.
+* The Enhanced Mask Module (EMM) which improves mask quality and increases the diversity of masks used for attention computation.
+* **State-of-the-art** higher accuracy under the same number of parameters and inference speed.
 * Support major segmentation datasets: COCO, Cityscapes, ADE20K.
 
 ***
 
 ## Updates
 
-* [2023/6] FastInst has been integrated into [ModelScope](https://www.modelscope.cn/home). Try out the Online Demo at [FastInst](https://modelscope.cn/models/damo/cv_resnet50_fast-instance-segmentation_coco/summary) 🚀.
-* [2023/4] We have released the code and checkpoints for FastInst. Welcome to your attention!
+* [2024/10] We have released the code and checkpoints for Training_strategy. Welcome to your attention!
 
 ## Installation
 
@@ -25,7 +25,7 @@ See [installation instructions](INSTALL.md).
 
 See [Results](#results).
 
-See [Preparing Datasets for FastInst](datasets/README.md).
+See [Preparing Datasets for Training_strategy](datasets/README.md).
 
 See [Getting Started](#getting-started-1).
 
@@ -33,7 +33,8 @@ See [Getting Started](#getting-started-1).
 
 # Results
 
-<p><img width="50%" src="figures/trade-off.png" /></p>
+<p><img width="50%" src="figures/compare_result1.png" /></p>
+<p><img width="50%" src="figures/compare_result2.png" /></p>
 
 ### COCO Instance Segmentation
 
