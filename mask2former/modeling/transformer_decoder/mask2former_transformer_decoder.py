@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # Modified by Bowen Cheng from: https://github.com/facebookresearch/detr/blob/master/models/detr.py
+import copy
 import logging
 import fvcore.nn.weight_init as weight_init
 from typing import Optional
@@ -12,7 +13,6 @@ from detectron2.layers import Conv2d
 
 from .position_encoding import PositionEmbeddingSine
 from .maskformer_transformer_decoder import TRANSFORMER_DECODER_REGISTRY
-
 
 class SelfAttentionLayer(nn.Module):
 
@@ -70,7 +70,6 @@ class SelfAttentionLayer(nn.Module):
                                     tgt_key_padding_mask, query_pos)
         return self.forward_post(tgt, tgt_mask,
                                  tgt_key_padding_mask, query_pos)
-
 
 class CrossAttentionLayer(nn.Module):
 
@@ -134,7 +133,6 @@ class CrossAttentionLayer(nn.Module):
         return self.forward_post(tgt, memory, memory_mask,
                                  memory_key_padding_mask, pos, query_pos)
 
-
 class FFNLayer(nn.Module):
 
     def __init__(self, d_model, dim_feedforward=2048, dropout=0.0,
@@ -177,7 +175,6 @@ class FFNLayer(nn.Module):
             return self.forward_pre(tgt)
         return self.forward_post(tgt)
 
-
 def _get_activation_fn(activation):
     """Return an activation function given a string"""
     if activation == "relu":
@@ -187,7 +184,6 @@ def _get_activation_fn(activation):
     if activation == "glu":
         return F.glu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
-
 
 class MLP(nn.Module):
     """ Very simple multi-layer perceptron (also called FFN)"""
@@ -202,7 +198,6 @@ class MLP(nn.Module):
         for i, layer in enumerate(self.layers):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
         return x
-
 
 @TRANSFORMER_DECODER_REGISTRY.register()
 class MultiScaleMaskedTransformerDecoder(nn.Module):
@@ -269,7 +264,8 @@ class MultiScaleMaskedTransformerDecoder(nn.Module):
 
         assert mask_classification, "Only support mask classification model"
         self.mask_classification = mask_classification
-
+        self.start_q = [0, 1, 2, 2, 3, 4, 6, 9, 14]
+        self.end_q = [1, 2, 3, 4, 6, 9, 14, 22, 35] 
         # positional encoding
         N_steps = hidden_dim // 2
         self.pe_layer = PositionEmbeddingSine(N_steps, normalize=True)
@@ -390,36 +386,50 @@ class MultiScaleMaskedTransformerDecoder(nn.Module):
 
         # prediction heads on learnable query features
         outputs_class, outputs_mask, attn_mask = self.forward_prediction_heads(output, mask_features, attn_mask_target_size=size_list[0])
+        num_attn_mask = attn_mask.shape[0]
         predictions_class.append(outputs_class)
         predictions_mask.append(outputs_mask)
+        query_feature_memory = [output]
 
         for i in range(self.num_layers):
+            start_q = self.start_q[i]
+            end_q = self.end_q[i]
             level_index = i % self.num_feature_levels
             attn_mask[torch.where(attn_mask.sum(-1) == attn_mask.shape[-1])] = False
+            output = query_feature_memory.copy()[start_q:end_q]
+            output = torch.cat(output, dim=1)
+            fakesetsize = int(output.shape[1] / bs) 
+            pixel_features_update = src[level_index].repeat(1, fakesetsize, 1)
+            query_embed_update = query_embed.repeat(1, fakesetsize, 1)
+            pos_update = pos[level_index].repeat(1, fakesetsize, 1)
+            attn_mask_update = copy.deepcopy(attn_mask[-num_attn_mask:, :, :]).repeat(fakesetsize, 1, 1)
+            mask_features_update = mask_features.repeat(fakesetsize, 1, 1, 1)
+
             # attention: cross-attention first
             output = self.transformer_cross_attention_layers[i](
-                output, src[level_index],
-                memory_mask=attn_mask,
+                output, pixel_features_update,
+                memory_mask=attn_mask_update,
                 memory_key_padding_mask=None,  # here we do not apply masking on padded region
-                pos=pos[level_index], query_pos=query_embed
+                pos=pos_update, query_pos=query_embed_update
             )
 
             output = self.transformer_self_attention_layers[i](
                 output, tgt_mask=None,
                 tgt_key_padding_mask=None,
-                query_pos=query_embed
+                query_pos=query_embed_update
             )
             
             # FFN
             output = self.transformer_ffn_layers[i](
                 output
             )
+            
+            outputs_class, outputs_mask, attn_mask = self.forward_prediction_heads(output, mask_features_update, attn_mask_target_size=size_list[(i + 1) % self.num_feature_levels])
 
-            outputs_class, outputs_mask, attn_mask = self.forward_prediction_heads(output, mask_features, attn_mask_target_size=size_list[(i + 1) % self.num_feature_levels])
-            predictions_class.append(outputs_class)
-            predictions_mask.append(outputs_mask)
-
-        assert len(predictions_class) == self.num_layers + 1
+            for j in range(fakesetsize):
+                predictions_class.append(outputs_class[bs*j: bs*(j + 1), :, :])  
+                predictions_mask.append(outputs_mask[bs*j: bs*(j + 1), :, :, :])
+                query_feature_memory.append(output[:, bs*j: bs*(j + 1), :])
 
         out = {
             'pred_logits': predictions_class[-1],
