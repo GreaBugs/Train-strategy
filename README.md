@@ -105,6 +105,17 @@ See [Getting Started](#getting-started-1).
 </tr>
 
 <tr>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R50-vd-dcn_ppm-fpn_x3_640.yaml">FastInst+EMM+MPQ</a></td>
+<td align="center">R50-d-DCN</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">40.8</td>
+<td align="center">34.7M</td>
+<td align="center">68.0</td>
+<td align="center">model</td>
+</tr>
+
+<tr>
 <td align="left"><a href="configs/coco/instance-segmentation/maskformer2_R50_bs16_50ep.yaml">Mask2Former</a></td>
 <td align="center">R50</td>
 <td align="center">50</td>
