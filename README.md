@@ -50,6 +50,17 @@ See [Getting Started](#getting-started-1).
 <th valign="bottom">download</th>
 
 <tr>
+<td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst</a></td>
+<td align="center">R101</td>
+<td align="center">50</td>
+<td align="center">640</td>
+<td align="center">38.8</td>
+<td align="center">53.1M</td>
+<td align="center">112.9</td>
+<td align="center">model</td>
+</tr>
+
+<tr>
 <td align="left"><a href="configs/coco/instance-segmentation/fastinst_R101_ppm-fpn_x3_640.yaml">FastInst+EMM+MPQ</a></td>
 <td align="center">R101</td>
 <td align="center">50</td>
@@ -57,7 +68,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">40.0</td>
 <td align="center">53.1M</td>
 <td align="center">112.9</td>
-<td align="center"><a href="">model</a></td>
+<td align="center">model</td>
 </tr>
 
 <tr>
@@ -68,7 +79,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">39.7</td>
 <td align="center">34.7M</td>
 <td align="center">68.0</td>
-<td align="center"><a href="">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.0.0/FastInst_39.7.pth">model</a></td>
 </tr>
 
 <tr>
@@ -79,7 +90,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">40.1</td>
 <td align="center">34.7M</td>
 <td align="center">68.0</td>
-<td align="center"><a href="">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.0.0/FastInst+EMM_40.1.pth">model</a></td>
 </tr>
 
 <tr>
@@ -101,7 +112,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">44.3</td>
 <td align="center">43.9M</td>
 <td align="center">224.8</td>
-<td align="center"><a href="">model</a></td>
+<td align="center">model</td>
 </tr>
 
 <tr>
@@ -112,7 +123,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">48.7</td>
 <td align="center">0.1G</td>
 <td align="center">464.2</td>
-<td align="center"><a href="">model</a></td>
+<td align="center">model</td>
 </tr>
 
 </tbody></table>
