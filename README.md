@@ -182,7 +182,7 @@ full usage.
   ```
   which can reproduce the model.
 
-#### Train FastInst to reproduce results
+#### Train FastInst or Mask2Former to reproduce results
 
 * Use the above command without `eval-only` will train the model.
   ```sh
