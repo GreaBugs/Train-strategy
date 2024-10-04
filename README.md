@@ -112,7 +112,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">43.6</td>
 <td align="center">43.9M</td>
 <td align="center">224.8</td>
-<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.1.0/Mask2Former_43.6.pth">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former_43.6.pth">model</a></td>
 </tr>
 
 <tr>
@@ -123,18 +123,18 @@ See [Getting Started](#getting-started-1).
 <td align="center">44.3</td>
 <td align="center">43.9M</td>
 <td align="center">224.8</td>
-<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.1.0/Mask2Former+EMM+MPQ_44.3.pth">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former+EMM+MPQ_44.3.pth">model</a></td>
 </tr>
 
 <tr>
-<td align="left"><a href="configs/coco/instance-segmentation/swin/maskformer2_swin_base_384_bs16_50ep.yaml">Mask2Former+EMM+MPQ</a></td>
+<td align="left"><a href="configs/coco/instance-segmentation/swin/maskformer2_swin_base_384_bs16_50ep.yaml">Mask2Former</a></td>
 <td align="center">Swin-B</td>
 <td align="center">50</td>
 <td align="center">640</td>
 <td align="center">48.1</td>
 <td align="center">0.1G</td>
 <td align="center">464.2</td>
-<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.1.0/Mask2Former_48.1.pth">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former_48.1.pth">model</a></td>
 </tr>
 
 <tr>
@@ -145,7 +145,7 @@ See [Getting Started](#getting-started-1).
 <td align="center">48.7</td>
 <td align="center">0.1G</td>
 <td align="center">464.2</td>
-<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v1.1.0/Mask2Former+EMM+MPQ_48.7.pth">model</a></td>
+<td align="center"><a href="https://github.com/GreaBugs/Train-strategy/releases/download/v2.0.0/Mask2Former+EMM+MPQ_48.7.pth">model</a></td>
 </tr>
 
 </tbody></table>
