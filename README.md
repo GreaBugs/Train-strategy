@@ -31,8 +31,12 @@ See [Getting Started](#getting-started-1).
 ***
 
 # Results
+ (the upper line represents the original model, the lower line represents the method of this paper)
+## Regarding the problem of error cascade.
 
 <p><img width="50%" src="figures/compare_result1.png" /></p>
+
+## Regarding the problem of feature degradation.
 <p><img width="50%" src="figures/compare_result2.png" /></p>
 
 ### COCO Instance Segmentation
